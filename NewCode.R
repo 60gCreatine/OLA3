@@ -335,13 +335,31 @@ lm_resultater[[666]]
 # Multiple R-squared:  0.445,	Adjusted R-squared:  0.4392 
 
 ##### Kun udtrække R^2 #####
-r_squared_liste <- list()
+top_df <- data.frame(kombinations_id = numeric(), R_squared = numeric())
+for (i in 1:length(r_squared_liste)) {
+    top_df <- rbind(top_df, data.frame(
+      kombination_id = i,
+      r_squared = r_squared_liste[[i]]
+    ))}
+top_df <- top_df[order(top_df$r_squared, decreasing = TRUE), ]
+head(top_df,5)
 
-for (i in 1:length(lm_resultater)){
-    r_squared_liste[i] <- lm_resultater[[i]]$r.squared
-  }
-length(r_squared_liste)
-r_squared <- unlist(r_squared_liste)
+###### Lille funktion til top, kan nu bare skrive top_(x), hvor x er hvor mange i toppen vi vil have ######
+top_ <- function(top){
+for (i in 1:nrow(top_df)){
+  if (i <= top) {
+    kombi_nr <- top_df$kombination_id[i]
+    r2 <- top_df$r_squared[i]
+    cat(paste0("Kombination nr: ",i," r2: ",round(r2,2)," har følgende spørgsmål: \n"))
+    print(Kombinationer[[kombi_nr]])
+  }}}
+  
+top_(5)
 
-top_5 <- r_squared[order(r_squared, decreasing = TRUE)[1:5]]
+#### Opgave 1.3 – Spørgsmål i indikatoren ####
+# Hvilke spørgsmål indgår i den indikator, 
+# som er bedst til at forklare variationen i forbruget? 
+# Giver kombinationen af spørgsmål analytisk mening? 
+# I bedes overveje alternative indikatorer fra jeres oversigt.
+
 
