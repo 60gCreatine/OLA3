@@ -112,7 +112,6 @@ length(Kombinationer)
 #                            der sammenligner de to indikatorer1)
 
 lm_resultater <- list()
-Spørgsmål <- FTI[,3:14]
 
 for (i in 1:length(Kombinationer)) {
   Kombination <- Kombinationer[[i]]  
@@ -216,7 +215,7 @@ for (col in colnames(FTI)[3:14]) {
   FTI_MIN <- rbind(FTI_MIN, data.frame(Spørgsmål = col, Minimum = min_værdi))
 }
 
-ggplot(resultat, aes(x = reorder(Spørgsmål, Minimum), y = Minimum, fill = Spørgsmål)) +
+ggplot(FTI_MIN, aes(x = reorder(Spørgsmål, Minimum), y = Minimum, fill = Spørgsmål)) +
   geom_bar(stat = "identity") +  
   geom_text(aes(label = round(Minimum, 1)), 
             position = position_stack(vjust = 0.5),  
@@ -335,6 +334,14 @@ lm_resultater[[666]]
 # Multiple R-squared:  0.445,	Adjusted R-squared:  0.4392 
 
 ##### Kun udtrække R^2 #####
+r_squared_liste <- numeric(length(lm_resultater))
+for (i in 1:length(lm_resultater)) {
+  if (!is.null(lm_resultater[[i]])) {
+    r_squared_liste[i] <- lm_resultater[[i]]$r.squared
+  } else {
+    lm_liste[i] <- NA  # Hvis regressionen er NULL, gem NA
+  }
+}
 top_df <- data.frame(kombinations_id = numeric(), R_squared = numeric())
 for (i in 1:length(r_squared_liste)) {
     top_df <- rbind(top_df, data.frame(
@@ -356,10 +363,147 @@ for (i in 1:nrow(top_df)){
   
 top_(5)
 
+###### Function til at finde specifik kombi ######
+spm <- c("Familiens økonomiske situation i dag  sammenlignet med for et år siden",
+         #"Familiens økonomiske  situation om et år  sammenlignet med i dag",
+         "Danmarks økonomiske situation i dag  sammenlignet med for et år siden",
+         #"Danmarks økonomiske situation om et år  sammenlignet med i dag",
+         "Anskaffelse af større forbrugsgoder  fordelagtigt for øjeblikket", 
+         #"Priser i dag  sammenlignet med for et år siden",
+         #"Priser om et år  sammenlignet med i dag",
+         #"Arbejdsløsheden om et år  sammenlignet med i dag",
+         "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr "
+         #"Anser det som fornuftigt at spare op i den nuværende økonomiske situation",
+         #"Regner med at kunne spare op i de kommende 12 måneder",
+         #"Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener"
+         )
+
+find_kombi <- function(spm) {
+  # Find kombinationer, der matcher længden og elementerne i spm
+  matches <- which(sapply(Kombinationer, function(kombi) {
+    length(kombi) == length(spm) && all(spm %in% kombi) && all(kombi %in% spm)
+  }))
+  
+  # Udskriv resultater, hvis findes, altså over 0
+  if (length(matches) > 0) {
+    for (i in matches) {
+      cat(paste0("Match fundet i kombination nr. ", i, ":\n"))
+      print(Kombinationer[[i]])
+    }
+  } else {
+    cat("Ingen match fundet.\n")
+  }
+}
+find_kombi(spm)
+##### DIs ift. vores bedste kombi #####
+#Match fundet i kombination nr. 355:
+#[1] "Familiens økonomiske situation i dag  sammenlignet med for et år siden"
+#[2] "Danmarks økonomiske situation i dag  sammenlignet med for et år siden" 
+#[3] "Anskaffelse af større forbrugsgoder  fordelagtigt for øjeblikket"      
+#[4] "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr " 
+
+#DIs
+print(top_df[top_df$kombination_id == 355,])
+#kombination_id r_squared
+#355            0.3340499
+
+#Vores
+print(top_df[top_df$kombination_id ==653,])
+#kombination_id r_squared
+#653             0.4549612
+
+
 #### Opgave 1.3 – Spørgsmål i indikatoren ####
 # Hvilke spørgsmål indgår i den indikator, 
 # som er bedst til at forklare variationen i forbruget? 
 # Giver kombinationen af spørgsmål analytisk mening? 
-# I bedes overveje alternative indikatorer fra jeres oversigt.
+# I bedes overveje alternative indikatorer fra jeres oversigt
+
+# Vi fik den samme som sidste gang
 
 
+#### Opgave 1.4 – Forudsigelser med afsæt i jeres indikatorer ####
+          # Nye nul for totale datasæt
+          FORV1_Q$`Anser det som fornuftigt at spare op i den nuværende økonomiske situation` <- 
+            FORV1_Q$`Anser det som fornuftigt at spare op i den nuværende økonomiske situation` - 
+            mean(FORV1_Q$`Anser det som fornuftigt at spare op i den nuværende økonomiske situation`, na.rm = TRUE)
+          
+          FORV1_Q$`Regner med at kunne spare op i de kommende 12 måneder` <- 
+            FORV1_Q$`Regner med at kunne spare op i de kommende 12 måneder` - 
+            mean(FORV1_Q$`Regner med at kunne spare op i de kommende 12 måneder`, na.rm = TRUE)
+          
+          FORV1_Q$`Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener` <- 
+            FORV1_Q$`Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener` - 
+            mean(FORV1_Q$`Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener`, na.rm = TRUE)
+
+  # Definer 'Bedste_Kombi' korrekt
+  Forbrugsdata$Bedste_Kombi <- round(rowMeans(FTI[, c(
+    "Danmarks økonomiske situation i dag  sammenlignet med for et år siden",
+    "Priser om et år  sammenlignet med i dag",
+    "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
+    "Regner med at kunne spare op i de kommende 12 måneder"
+  )], na.rm = TRUE), 2)
+  
+  # Byg den lineære model
+  lm_model <- lm(Årlig_vækst ~ Bedste_Kombi, data = Forbrugsdata)
+  summary(lm_model)
+  
+  # Forudsigelse for det nyeste kvartal
+  newestQ <- data.frame(
+    Bedste_Kombi = round(rowMeans(FORV1_Q[nrow(FORV1_Q), c(
+      "Danmarks økonomiske situation i dag  sammenlignet med for et år siden",
+      "Priser om et år  sammenlignet med i dag",
+      "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
+      "Regner med at kunne spare op i de kommende 12 måneder"
+    )], na.rm = TRUE), 2)
+  )
+  
+  newest_predict <- predict(lm_model, newdata = newestQ)
+  print(round(newest_predict,2))
+  # 1.65%
+  print(round(sd(Forbrugsdata$Årlig_vækst),2))
+  #standard afvigelse er på hele 2.8
+  
+  # Husk vi kun har 2 ud af 3 måneder for kvartalet
+  
+        # Vi kan evt også lave for DI, og se hvad den forudsiger
+  
+#### Opgave 1.5 – Sammenlign med en mikroøkonomisk indikator ####
+  Spørgsmål <- FTI[, c(
+    "Familiens økonomiske situation i dag  sammenlignet med for et år siden",
+    "Familiens økonomiske  situation om et år  sammenlignet med i dag",
+    "Anskaffelse af større forbrugsgoder  fordelagtigt for øjeblikket",
+    "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
+    "Anser det som fornuftigt at spare op i den nuværende økonomiske situation",
+    "Regner med at kunne spare op i de kommende 12 måneder",
+    "Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener"
+  )]
+  
+  for (i in 1:length(Kombinationer)) {
+    Kombination <- Kombinationer[[i]]  
+    Mean_FTI <- rowMeans(Spørgsmål[, Kombination, drop = FALSE], na.rm = TRUE) 
+    
+    # Byg data-frame til regression
+    variables_df <- data.frame(FTI = Mean_FTI, forbrug = forbrug)
+    
+    # Kør lineær regression med fejl-håndtering
+    lm_resultater[[i]] <- tryCatch({
+      summary(lm(forbrug ~ FTI, data = variables_df))
+    }, error = function(err) {
+      cat(paste0("FEJL: ", err$message, "!!!!!\n"))
+      NULL
+    })
+  }
+  
+  top_df_mikro <- data.frame(kombinations_id = numeric(), R_squared = numeric())
+  for (i in 1:length(r_squared_liste)) {
+    top_df <- rbind(top_df_mikro, data.frame(
+      kombination_id = i,
+      r_squared = r_squared_liste[[i]]
+    ))}
+  top_df_mikro <- top_df_mikro[order(top_df_mikro$r_squared, decreasing = TRUE), ]
+  head(top_df,5)
+  
+  
+  
+  
