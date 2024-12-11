@@ -361,7 +361,9 @@ for (i in 1:nrow(top_df)){
     print(Kombinationer[[kombi_nr]])
   }}}
   
-top_(5)
+top_(1)
+# plot den
+
 
 ###### Function til at finde specifik kombi ######
 spm <- c("Familiens økonomiske situation i dag  sammenlignet med for et år siden",
@@ -469,41 +471,75 @@ print(top_df[top_df$kombination_id ==653,])
         # Vi kan evt også lave for DI, og se hvad den forudsiger
   
 #### Opgave 1.5 – Sammenlign med en mikroøkonomisk indikator ####
+  # Valg af mikroøkonomiske spørgsmål
   Spørgsmål <- FTI[, c(
     "Familiens økonomiske situation i dag  sammenlignet med for et år siden",
     "Familiens økonomiske  situation om et år  sammenlignet med i dag",
-    "Anskaffelse af større forbrugsgoder  fordelagtigt for øjeblikket",
     "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
-    "Anser det som fornuftigt at spare op i den nuværende økonomiske situation",
     "Regner med at kunne spare op i de kommende 12 måneder",
     "Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener"
   )]
+  # Tjek rapporten om det er det samme
   
-  for (i in 1:length(Kombinationer)) {
-    Kombination <- Kombinationer[[i]]  
-    Mean_FTI <- rowMeans(Spørgsmål[, Kombination, drop = FALSE], na.rm = TRUE) 
-    
-    # Byg data-frame til regression
-    variables_df <- data.frame(FTI = Mean_FTI, forbrug = forbrug)
-    
-    # Kør lineær regression med fejl-håndtering
-    lm_resultater[[i]] <- tryCatch({
-      summary(lm(forbrug ~ FTI, data = variables_df))
-    }, error = function(err) {
-      cat(paste0("FEJL: ", err$message, "!!!!!\n"))
-      NULL
-    })
+  Spørgsmål_navne <- names(Spørgsmål)
+  
+  # Generering af kombinationer
+  Kombinationer <- list()
+  for (i in 1:length(Spørgsmål_navne)) {
+    Kombi <- combn(Spørgsmål_navne, i, simplify = FALSE)
+    Kombinationer <- c(Kombinationer, Kombi)
   }
   
-  top_df_mikro <- data.frame(kombinations_id = numeric(), R_squared = numeric())
-  for (i in 1:length(r_squared_liste)) {
-    top_df <- rbind(top_df_mikro, data.frame(
-      kombination_id = i,
-      r_squared = r_squared_liste[[i]]
-    ))}
-  top_df_mikro <- top_df_mikro[order(top_df_mikro$r_squared, decreasing = TRUE), ]
-  head(top_df,5)
+  # Regression og beregning af R^2
+  lm_resultater <- list()
+  r_squared_liste <- numeric(length(Kombinationer))  # Sikrer korrekt initiering
   
+  for (i in 1:length(Kombinationer)) {
+    Kombination <- Kombinationer[[i]]
+    
+    # Tjek, at kombinationen matcher eksisterende kolonner
+    valid_cols <- Kombination[Kombination %in% colnames(Spørgsmål)]
+    
+    if (length(valid_cols) > 0) {
+      Mean_FTI <- rowMeans(Spørgsmål[, valid_cols, drop = FALSE], na.rm = TRUE)
+      
+      # Byg data-frame til regression
+      variables_df <- data.frame(FTI = Mean_FTI, forbrug = forbrug)
+      
+      # Kør lineær regression
+      lm_resultater[[i]] <- tryCatch({
+        model <- lm(forbrug ~ FTI, data = variables_df)
+        summary(model)$r.squared
+      }, error = function(err) {
+        NA
+      })
+      # Gem R²-værdien
+      r_squared_liste[i] <- lm_resultater[[i]]
+    } else {
+      r_squared_liste[i] <- NA
+    }
+  }
+  
+  # Opret data frame med kombinationer og R^2
+  top_df_mikro <- data.frame(
+    kombination_id = 1:length(Kombinationer),
+    r_squared = r_squared_liste
+  )
+  
+  # Sortér data frame efter R^2
+  top_df_mikro <- top_df_mikro[order(top_df_mikro$r_squared, decreasing = TRUE), ]
+  
+  # Vis de bedste kombinationer
+  head(top_df_mikro, 10)
+
+  
+#### Opgave 4 – Stabilitet i jeres forbrugertillidsindikator ####
+  ##### Opgave 4.1 – Test af model fra opgave 1 #####
+#  Undersøg stabiliteten af jeres fundne indikator fra opgave 1. 
+#  Giv en grundig forklaring på opsætning til at undersøge stabiliteten.
+
+model_data <- Forbrugsdata
+
   
   
   
