@@ -1,5 +1,6 @@
 library(dkstat)
 library(ggplot2)
+library(pls)
 FORV1 <- dst_meta(table = "FORV1", lang = "da")
 
 # For at lave et filer, kan vi variables ved FORV1$variables
@@ -124,6 +125,35 @@ print(newest_predict)
 # -0.1922038
 
 # Ikke underligt
+# dobbelt tjek 2.3
+pls.fit <- plsr(Årlig_vækst~
+                 `Familiens økonomiske situation i dag  sammenlignet med for et år siden` +
+                 `Familiens økonomiske  situation om et år  sammenlignet med i dag` +
+                 `Danmarks økonomiske situation i dag  sammenlignet med for et år siden` +
+                 `Danmarks økonomiske situation om et år  sammenlignet med i dag` +
+                 `Anskaffelse af større forbrugsgoder  fordelagtigt for øjeblikket` +
+                 `Priser i dag  sammenlignet med for et år siden` +
+                 `Priser om et år  sammenlignet med i dag` +
+                 `Arbejdsløsheden om et år  sammenlignet med i dag` +
+                 `Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ` +
+                 `Anser det som fornuftigt at spare op i den nuværende økonomiske situation` +
+                 `Regner med at kunne spare op i de kommende 12 måneder` +
+                 `Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener`,
+               data = Forbrugsdata, scale = TRUE, validation = "CV")
+summary(pls.fit)
+
+loading.pls<- pls.fit$loadings[1:12]^2
+loadings_pls_df <- as.data.frame(round(loading.pls,3))
+loadings_pls_df <- loadings_pls_df[order(loadings_pls_df[, 1], decreasing = TRUE), , drop = FALSE]
+rownames(loadings_pls_df) <- colnames(Forbrugsdata[4:15])
+colnames(loadings_pls_df) <- "vægtning"
+head(loadings_pls_df, 3)
+newest_predict_pls <- predict(pls.fit, newdata = newestQ, ncomp = 1)
+
+print(newest_predict_pls)
+# Årlig_vækst
+# 0.07934329
+
 
 
 #### Opgave 2.4 – Forudsigelser fra DI ####

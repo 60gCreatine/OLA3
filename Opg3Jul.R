@@ -72,6 +72,18 @@ FTI <- FORV1_Q[1:forbrug_længde, ]
 colnames(FTI)[1] = "Tid"
 Spørgsmål <- FTI[,3:14]
 
+Forbrugsdata$Realretning <- ifelse(Forbrugsdata$Årlig_vækst >= 0, "Op", "Ned")
+
+# Opdel data i to grupper baseret på Realretning
+Realvaekst_Op <- subset(Forbrugsdata, Realretning == "Op")
+Realvaekst_Ned <- subset(Forbrugsdata, Realretning == "Ned")
+
+# Beregn gennemsnit for hver gruppe
+Mean_Op <- colMeans(Realvaekst_Op$Årlig_vækst[, sapply(Realvaekst_Op$Årlig_vækst, is.numeric)], na.rm = TRUE)
+Mean_Ned <- colMeans(Realvaekst_Ned$Årlig_vækst[, sapply(Realvaekst_Ned$Årlig_vækst, is.numeric)], na.rm = TRUE)
+
+# Kombiner gennemsnit i én data frame
+Mean_combined <- data.frame(Op = Mean_Op, Ned = Mean_Ned, row.names = NULL)
 
 
 
