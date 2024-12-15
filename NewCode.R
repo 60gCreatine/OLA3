@@ -470,76 +470,192 @@ print(top_df[top_df$kombination_id ==653,])
   
         # Vi kan evt også lave for DI, og se hvad den forudsiger
   
-#### Opgave 1.5 – Sammenlign med en mikroøkonomisk indikator ####
-  # Valg af mikroøkonomiske spørgsmål
-  Spørgsmål <- FTI[, c(
-    "Familiens økonomiske situation i dag  sammenlignet med for et år siden",
-    "Familiens økonomiske  situation om et år  sammenlignet med i dag",
-    "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
-    "Regner med at kunne spare op i de kommende 12 måneder",
-    "Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener"
-  )]
-  # Tjek rapporten om det er det samme
-  
-  Spørgsmål_navne <- names(Spørgsmål)
-  
-  # Generering af kombinationer
-  Kombinationer <- list()
-  for (i in 1:length(Spørgsmål_navne)) {
-    Kombi <- combn(Spørgsmål_navne, i, simplify = FALSE)
-    Kombinationer <- c(Kombinationer, Kombi)
-  }
-  
-  # Regression og beregning af R^2
-  lm_resultater <- list()
-  r_squared_liste <- numeric(length(Kombinationer))  # Sikrer korrekt initiering
-  
-  for (i in 1:length(Kombinationer)) {
-    Kombination <- Kombinationer[[i]]
-    
-    # Tjek, at kombinationen matcher eksisterende kolonner
-    valid_cols <- Kombination[Kombination %in% colnames(Spørgsmål)]
-    
-    if (length(valid_cols) > 0) {
-      Mean_FTI <- rowMeans(Spørgsmål[, valid_cols, drop = FALSE], na.rm = TRUE)
-      
-      # Byg data-frame til regression
-      variables_df <- data.frame(FTI = Mean_FTI, forbrug = forbrug)
-      
-      # Kør lineær regression
-      lm_resultater[[i]] <- tryCatch({
-        model <- lm(forbrug ~ FTI, data = variables_df)
-        summary(model)$r.squared
-      }, error = function(err) {
-        NA
-      })
-      # Gem R²-værdien
-      r_squared_liste[i] <- lm_resultater[[i]]
-    } else {
-      r_squared_liste[i] <- NA
-    }
-  }
-  
-  # Opret data frame med kombinationer og R^2
-  top_df_mikro <- data.frame(
-    kombination_id = 1:length(Kombinationer),
-    r_squared = r_squared_liste
-  )
-  
-  # Sortér data frame efter R^2
-  top_df_mikro <- top_df_mikro[order(top_df_mikro$r_squared, decreasing = TRUE), ]
-  
-  # Vis de bedste kombinationer
-  head(top_df_mikro, 10)
-
-  
+##### Opgave 1.5 – Sammenlign med en mikroøkonomisk indikator ####
+#  # Valg af mikroøkonomiske spørgsmål
+#  Spørgsmål <- FTI[, c(
+#    "Familiens økonomiske situation i dag  sammenlignet med for et år siden",
+#    "Familiens økonomiske  situation om et år  sammenlignet med i dag",
+#    "Anskaffelse af større forbrugsgoder  inden for de næste 12 mdr ",
+#    "Regner med at kunne spare op i de kommende 12 måneder",
+#    "Familiens økonomiske situation lige nu  kan spare penge slår til  bruger mere end man tjener"
+#  )]
+#  # Tjek rapporten om det er det samme
+#  
+#  Spørgsmål_navne <- names(Spørgsmål)
+#  
+#  # Generering af kombinationer
+#  Kombinationer <- list()
+#  for (i in 1:length(Spørgsmål_navne)) {
+#    Kombi <- combn(Spørgsmål_navne, i, simplify = FALSE)
+#    Kombinationer <- c(Kombinationer, Kombi)
+#  }
+#  
+#  # Regression og beregning af R^2
+#  lm_resultater <- list()
+#  r_squared_liste <- numeric(length(Kombinationer))  # Sikrer korrekt initiering
+#  
+#  for (i in 1:length(Kombinationer)) {
+#    Kombination <- Kombinationer[[i]]
+#    
+#    # Tjek, at kombinationen matcher eksisterende kolonner
+#    valid_cols <- Kombination[Kombination %in% colnames(Spørgsmål)]
+#    
+#    if (length(valid_cols) > 0) {
+#      Mean_FTI <- rowMeans(Spørgsmål[, valid_cols, drop = FALSE], na.rm = TRUE)
+#      
+#      # Byg data-frame til regression
+#      variables_df <- data.frame(FTI = Mean_FTI, forbrug = forbrug)
+#      
+#      # Kør lineær regression
+#      lm_resultater[[i]] <- tryCatch({
+#        model <- lm(forbrug ~ FTI, data = variables_df)
+#        summary(model)$r.squared
+#      }, error = function(err) {
+#        NA
+#      })
+#      # Gem R²-værdien
+#      r_squared_liste[i] <- lm_resultater[[i]]
+#    } else {
+#      r_squared_liste[i] <- NA
+#    }
+#  }
+#  
+#  # Opret data frame med kombinationer og R^2
+#  top_df_mikro <- data.frame(
+#    kombination_id = 1:length(Kombinationer),
+#    r_squared = r_squared_liste
+#  )
+#  
+#  # Sortér data frame efter R^2
+#  top_df_mikro <- top_df_mikro[order(top_df_mikro$r_squared, decreasing = TRUE), ]
+#  
+#  # Vis de bedste kombinationer
+#  head(top_df_mikro, 10)
+#
+#  
 #### Opgave 4 – Stabilitet i jeres forbrugertillidsindikator ####
   ##### Opgave 4.1 – Test af model fra opgave 1 #####
 #  Undersøg stabiliteten af jeres fundne indikator fra opgave 1. 
 #  Giv en grundig forklaring på opsætning til at undersøge stabiliteten.
 
-model_data <- Forbrugsdata
+  # Antal kvertaler der skal fjernes, fra hver ende at tidsperioden
+  max_steps <- 15
+  
+  # Total antal kvataler
+  N <- length(forbrug)
+  
+  # Funktion til at beregne R^2 for alle kombinationer på et givent datasæt
+  beregn_r2 <- function(forbrug_sub, spørgsmål_sub, kombinationer) {
+    # Forbered vektor til at gemme R² værdier
+    r2_values <- numeric(length(kombinationer))
+    
+    for (i in seq_along(kombinationer)) {
+      spm_navne <- kombinationer[[i]]
+      
+      # Tjek at alle spørgsmål findes i spørgsmål_sub - hvilket de alle gør, men godt at huske som en 'best practice'
+      if (all(spm_navne %in% colnames(spørgsmål_sub))) {
+        # Beregn gennemsnits-FTI for denne kombination
+        mean_fti <- rowMeans(spørgsmål_sub[, spm_navne, drop = FALSE], na.rm = TRUE)
+        
+        # Byg data-frame til regression
+        df <- data.frame(forbrug = forbrug_sub, FTI = mean_fti)
+        
+        # Kør lineær regression
+        mod <- lm(forbrug ~ FTI, data = df)
+        
+        # Gem R^2
+        r2_values[i] <- summary(mod)$r.squared
+      } else {
+        r2_values[i] <- NA
+      }
+    }
+    
+    return(r2_values)
+  }
+  
+  # Liste til at gemme alle R² resultater for hvert step
+  # Efterfølgende vil vi konvertere den til en matrix
+  alle_r2_resultater <- vector("list", length = max_steps + 1)
+  
+  for (step in 0:max_steps) {
+    # Definer start- og slutindeks for dette step
+    start_ind <- 1 + step
+    end_ind <- N - step
+    
+    # Udsnit af data
+    forbrug_sub <- forbrug[start_ind:end_ind]
+    spørgsmål_sub <- Spørgsmål[start_ind:end_ind, , drop = FALSE]
+    
+    # Beregn R² værdierne for alle kombinationer på dette subset
+    alle_r2_resultater[[step + 1]] <- beregn_r2(forbrug_sub, spørgsmål_sub, Kombinationer)
+  }
+  
+  # Konverter alle_r2_resultater til en matrix med kombinationer på rækker og steps på kolonner
+  r2_matrix <- do.call(cbind, alle_r2_resultater)
+  
+  # Beregn gennemsnit og standardafvigelse for hver kombination på tværs af steps
+  mean_R2 <- rowMeans(r2_matrix, na.rm = TRUE)
+  sd_R2 <- apply(r2_matrix, 1, sd, na.rm = TRUE)
+  
+  # Opret en data frame med resultater
+  # Her antager vi, at kombination_id blot er rækkefølgen af kombinationer
+  result_df <- data.frame(
+    kombination_id = seq_along(Kombinationer),
+    Mean_R2 = mean_R2,
+    SD_R2 = sd_R2,
+    stringsAsFactors = FALSE
+  )
+  
+  # Sortér efter gennemsnits R² hvis ønsket
+  result_df <- result_df[order(result_df$Mean_R2, decreasing = TRUE), ]
+  
+  # Se top-5 mest stabile kombinationer
+  head(result_df, 5)
+  
+  # result_df indeholder nu slutresultatet for alle kombinationer:
+  # ID, gennemsnitlig R², samt standardafvigelsen for R² på tværs af de forkortede datasæt
+  
+   kombi1_id <- 653
+   kombi2_id <- 1410
+   fjerne_obs_start <- 10
+   fjerne_obs_slut <- 15
 
   
+
+  kombi1_spm <- Kombinationer[[kombi1_id]]
+  kombi2_spm <- Kombinationer[[kombi2_id]]
+  
+
+  Mean_FTI_kombi1 <- rowMeans(Spørgsmål[, kombi1_spm, drop = FALSE], na.rm = TRUE)
+  Mean_FTI_kombi2 <- rowMeans(Spørgsmål[, kombi2_spm, drop = FALSE], na.rm = TRUE)
+  
+
+  plot_data <- data.frame(
+    Tid = Forbrugsdata$Tid,
+    FTI_kombi1 = Mean_FTI_kombi1[],
+    FTI_kombi2 = Mean_FTI_kombi2
+  )
+  
+
+  N <- length(Tid)
+  start_cut_index <- 1 + fjerne_obs_start
+  end_cut_index <- N - fjerne_obs_slut
+  start_cut_time <- Tid[start_cut_index]
+  end_cut_time   <- Tid[end_cut_index]
+  
+
+  ggplot(plot_data, aes(x = Tid)) +
+    geom_line(aes(y = FTI_kombi1, color = "Kombination 653"), size = 1) +
+    geom_line(aes(y = FTI_kombi2, color = "Kombination 1410"), size = 1) +
+    geom_vline(xintercept = start_cut_time, linetype = "dashed", color = "gray50") +
+    geom_vline(xintercept = end_cut_time, linetype = "dashed", color = "gray50") +
+    annotate("text", x = start_cut_time, y = Inf, label = "Fjernede obs. før dette punkt", 
+             vjust = 2, hjust = 1.1, angle = 90, size = 3, color = "gray20") +
+    annotate("text", x = end_cut_time, y = Inf, label = "Fjernede obs. efter dette punkt", 
+             vjust = 2, hjust = -0.1, angle = 90, size = 3, color = "gray20") +
+    scale_color_manual(values = c("Kombination 653" = "blue", "Kombination 1410" = "red")) +
+    labs(title = "To kombinationers udvikling over tidsperioden",
+         x = "Tid", y = "Gennemsnitlig FTI", color = "Kombination") +
+    theme_minimal(base_size = 12)
   
   
